@@ -59,7 +59,7 @@ const Login = () => {
         if (response.ok) {
           alert("Login successful!");
           const role = data.role.toLowerCase();
-          navigate(`/${role}-dashboard`);
+          navigate(`/${role}-dashboard`); // Redirects to /qa-dashboard
         } else {
           alert(data.error || "Login failed");
         }
@@ -71,7 +71,6 @@ const Login = () => {
       alert("Please fix the errors in the form before submitting.");
     }
   };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
