@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "react-toastify"; // Import toast
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState({}); // State for validation errors
+  const [errors, setErrors] = useState({});
   const navigate = useNavigate();
 
   const validateField = (name, value) => {
@@ -57,20 +58,21 @@ const Login = () => {
         });
         const data = await response.json();
         if (response.ok) {
-          alert("Login successful!");
+          toast.success("Login successful!"); // Replace alert with toast.success
           const role = data.role.toLowerCase();
-          navigate(`/${role}-dashboard`); // Redirects to /qa-dashboard
+          navigate(`/${role}-dashboard`);
         } else {
-          alert(data.error || "Login failed");
+          toast.error(data.error || "Login failed"); // Replace alert with toast.error
         }
       } catch (error) {
         console.error("Login error:", error);
-        alert("An error occurred. Please try again.");
+        toast.error("An error occurred. Please try again."); // Replace alert with toast.error
       }
     } else {
-      alert("Please fix the errors in the form before submitting.");
+      toast.error("Please fix the errors in the form before submitting."); // Replace alert with toast.error
     }
   };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">

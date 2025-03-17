@@ -1,6 +1,6 @@
-
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "react-toastify"; // Import toast
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -9,7 +9,7 @@ const Signup = () => {
     password: "",
     role: "Manager",
   });
-  const [errors, setErrors] = useState({}); // State for validation errors
+  const [errors, setErrors] = useState({});
   const navigate = useNavigate();
 
   const validateField = (name, value) => {
@@ -84,17 +84,17 @@ const Signup = () => {
         });
         const data = await response.json();
         if (response.ok) {
-          alert("Account created!");
+          toast.success("Account created!"); // Replace alert with toast.success
           navigate("/login");
         } else {
-          alert(data.error);
+          toast.error(data.error); // Replace alert with toast.error
         }
       } catch (error) {
         console.error("Signup error:", error);
-        alert("An error occurred. Please try again.");
+        toast.error("An error occurred. Please try again."); // Replace alert with toast.error
       }
     } else {
-      alert("Please fix the errors in the form before submitting.");
+      toast.error("Please fix the errors in the form before submitting."); // Replace alert with toast.error
     }
   };
 

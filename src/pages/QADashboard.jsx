@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "react-toastify"; // Import toast
 
 const QADashboard = () => {
   const [bugData, setBugData] = useState({
@@ -40,7 +41,7 @@ const QADashboard = () => {
           setBugs([]);
         }
       } else if (bugResponse.status === 403) {
-        alert(bugData.error || "You are not assigned to any projects.");
+        toast.error(bugData.error || "You are not assigned to any projects."); // Replace alert with toast.error
         navigate("/login");
         return;
       } else {
@@ -99,10 +100,10 @@ const QADashboard = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        alert("Logged out!");
+        toast.success("Logged out!"); // Replace alert with toast.success
         navigate("/login");
       } else {
-        alert(data.error);
+        toast.error(data.error); // Replace alert with toast.error
       }
     } catch (error) {
       console.error("Logout error:", error);
@@ -143,7 +144,7 @@ const QADashboard = () => {
       );
       const data = await response.json();
       if (response.ok) {
-        alert("Bug created!");
+        toast.success("Bug created!"); // Replace alert with toast.success
         setBugData({
           projectId: "",
           title: "",
@@ -155,11 +156,11 @@ const QADashboard = () => {
         });
         fetchDashboardData();
       } else {
-        alert(data.error || "Bug creation failed");
+        toast.error(data.error || "Bug creation failed"); // Replace alert with toast.error
       }
     } catch (error) {
       console.error("Bug creation error:", error);
-      alert("An error occurred. Please check the console for details.");
+      toast.error("An error occurred. Please check the console for details."); // Replace alert with toast.error
     }
   };
 
@@ -170,16 +171,14 @@ const QADashboard = () => {
       });
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(
-          `HTTP error! status: ${response.status}, body: ${text}`
-        );
+        throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
       }
       const data = await response.json();
-      alert(data.message);
+      toast.success(data.message); // Replace alert with toast.success
       fetchDashboardData();
     } catch (error) {
       console.error("Lock bug error:", error.message);
-      alert("An error occurred. Please try again. Check console for details.");
+      toast.error("An error occurred. Please try again. Check console for details."); // Replace alert with toast.error
     }
   };
 
@@ -192,14 +191,14 @@ const QADashboard = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        alert("Status updated!");
+        toast.success("Status updated!"); // Replace alert with toast.success
         fetchDashboardData();
       } else {
-        alert(data.error || "Failed to update status");
+        toast.error(data.error || "Failed to update status"); // Replace alert with toast.error
       }
     } catch (error) {
       console.error("Update status error:", error);
-      alert("An error occurred. Please try again.");
+      toast.error("An error occurred. Please try again."); // Replace alert with toast.error
     }
   };
 
@@ -244,10 +243,7 @@ const QADashboard = () => {
           {bugs.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {bugs.map((bug) => {
-                const allowedStatuses = getAllowedStatuses(
-                  bug.status,
-                  userRole
-                );
+                const allowedStatuses = getAllowedStatuses(bug.status, userRole);
                 return (
                   <div
                     key={bug._id}
