@@ -1,5 +1,7 @@
+
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { toast } from "react-toastify"; // Import toast
 
 const ManagerDashboard = () => {
   const [message, setMessage] = useState("");
@@ -14,28 +16,52 @@ const ManagerDashboard = () => {
     qaEmails: [],
   });
   const [projects, setProjects] = useState([]);
+  const [selectedProjectBugs, setSelectedProjectBugs] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    name: "",
+    developerEmail: "",
+    qaEmail: "",
+    bugCount: "", // e.g., "gt_5", "lt_10", "eq_3"
+  });
   const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const response = await fetch("/api/manager-dashboard");
+      const response = await fetch("/api/manager-dashboard", {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
       const data = await response.json();
-      if (data.message) setMessage(data.message);
+      console.log("fetchDashboardData response:", data);
+      setMessage(data.message || `Welcome! Check your projects.`);
     } catch (error) {
       console.error("Error fetching dashboard:", error);
+      setMessage("Failed to load dashboard data. Please try again.");
     }
   }, []);
 
   const fetchProjects = useCallback(async () => {
     try {
-      const response = await fetch("/api/projects");
+      let url = "/api/projects/filter";
+      const params = new URLSearchParams();
+      if (filters.name) params.append("name", filters.name);
+      if (filters.developerEmail)
+        params.append("developerEmail", filters.developerEmail);
+      if (filters.qaEmail) params.append("qaEmail", filters.qaEmail);
+      if (filters.bugCount) params.append("bugCount", filters.bugCount);
+      if (params.toString()) url += `?${params.toString()}`;
+
+      const response = await fetch(url, { cache: "no-store" });
       const data = await response.json();
       if (response.ok) setProjects(data.projects || []);
       else console.error("Failed to fetch projects:", data.error);
     } catch (error) {
       console.error("Error fetching projects:", error);
     }
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -50,10 +76,10 @@ const ManagerDashboard = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        alert("Logged out!");
+        toast.success("Logged out!");
         navigate("/login");
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (error) {
       console.error("Logout error:", error);
@@ -94,11 +120,11 @@ const ManagerDashboard = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        alert("Project created! Project ID: " + data.projectId);
+        toast.success("Project created! Project ID: " + data.projectId);
         setProjectData({ name: "", developerEmails: [], qaEmails: [] });
         fetchProjects();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (error) {
       console.error("Project creation error:", error);
@@ -108,6 +134,7 @@ const ManagerDashboard = () => {
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     try {
+      console.log("Update payload:", updateData);
       const response = await fetch("/api/projects", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -115,14 +142,35 @@ const ManagerDashboard = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        alert("Project updated!");
+        toast.success(data.message || "Project updated!");
         setUpdateData({ projectId: "", developerEmails: [], qaEmails: [] });
         fetchProjects();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (error) {
       console.error("Project update error:", error);
+    }
+  };
+
+  const handleDeleteProject = async (projectId) => {
+    if (window.confirm("Are you sure you want to delete this project?")) {
+      try {
+        const response = await fetch(`/api/projects/${projectId}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        });
+        const data = await response.json();
+        if (response.ok) {
+          toast.success(data.message || "Project deleted successfully!");
+          fetchProjects();
+        } else {
+          toast.error(data.error);
+        }
+      } catch (error) {
+        console.error("Project delete error:", error);
+        toast.error("An error occurred while deleting the project.");
+      }
     }
   };
 
@@ -131,13 +179,47 @@ const ManagerDashboard = () => {
       const response = await fetch(`/api/projects/${projectId}/bugs`);
       const data = await response.json();
       if (response.ok) {
-        alert(JSON.stringify(data.bugs, null, 2));
+        setSelectedProjectBugs(data.bugs || []);
+        setIsModalOpen(true);
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (error) {
       console.error("Error fetching bugs:", error);
+      toast.error("An error occurred while fetching bugs.");
     }
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedProjectBugs([]);
+  };
+
+  const handleCloseBug = async (bugId) => {
+    try {
+      const response = await fetch(`/api/bugs/${bugId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "closed" }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success("Bug closed successfully!");
+        viewBugs(
+          projects.find((p) => p._id === selectedProjectBugs[0]?.projectId)._id
+        );
+      } else {
+        toast.error(data.error || "Failed to close bug");
+      }
+    } catch (error) {
+      console.error("Error closing bug:", error);
+      toast.error("An error occurred while closing the bug.");
+    }
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
   return (
@@ -156,30 +238,86 @@ const ManagerDashboard = () => {
         </div>
         <p className="text-gray-700 mb-6">{message || "Loading..."}</p>
 
+        {/* Filter Projects */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            Filter Projects
+          </h3>
+          <div className="space-y-4">
+            <input
+              type="text"
+              name="name"
+              placeholder="Filter by project name..."
+              value={filters.name}
+              onChange={handleFilterChange}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 p-2"
+            />
+            <input
+              type="text"
+              name="developerEmail"
+              placeholder="Filter by developer email..."
+              value={filters.developerEmail}
+              onChange={handleFilterChange}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 p-2"
+            />
+            <input
+              type="text"
+              name="qaEmail"
+              placeholder="Filter by QA email..."
+              value={filters.qaEmail}
+              onChange={handleFilterChange}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 p-2"
+            />
+            <input
+              type="text"
+              name="bugCount"
+              placeholder="Filter by bug count (e.g., gt_5, lt_10, eq_3)..."
+              value={filters.bugCount}
+              onChange={handleFilterChange}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 p-2"
+            />
+          </div>
+        </div>
+
         {/* Projects Section */}
         <div className="mb-8">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">Projects</h3>
           {projects.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map((project) => (
                 <div
                   key={project._id}
-                  className="bg-gray-50 p-4 rounded-md shadow-sm border border-gray-200 hover:shadow-md transition duration-300"
+                  className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                 >
-                  <p className="text-lg font-medium text-blue-600">
+                  <p className="text-xl font-semibold text-blue-600 mb-2">
                     {project.name}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-1">
+                    Developers: {project.developers?.length || 0}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-1">
+                    QA Members: {project.qas?.length || 0}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Bugs: {project.bugCount || 0}
                   </p>
                   <button
                     onClick={() => viewBugs(project._id)}
-                    className="mt-2 bg-blue-500 text-white py-1 px-3 rounded-md hover:bg-blue-600 transition duration-300 text-sm"
+                    className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-300 text-sm font-medium mb-2"
                   >
                     View Bugs
+                  </button>
+                  <button
+                    onClick={() => handleDeleteProject(project._id)}
+                    className="w-full bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition duration-300 text-sm font-medium"
+                  >
+                    Delete Project
                   </button>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-gray-500">No projects yet.</p>
+            <p className="text-gray-500">No projects match your filter.</p>
           )}
         </div>
 
@@ -320,6 +458,70 @@ const ManagerDashboard = () => {
             </button>
           </form>
         </div>
+
+        {/* Modal for Viewing Bugs */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Bugs for Project
+                </h3>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              {selectedProjectBugs.length > 0 ? (
+                <ul className="space-y-4">
+                  {selectedProjectBugs.map((bug) => (
+                    <li
+                      key={bug._id}
+                      className="p-4 bg-gray-50 rounded-md shadow-sm border border-gray-200"
+                    >
+                      <p className="text-lg font-medium text-blue-600">
+                        {bug.title}
+                      </p>
+                      <p className="text-sm text-gray-600">Type: {bug.type}</p>
+                      <p className="text-sm text-gray-600">
+                        Status: {bug.status}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Created by: {bug.createdBy?.name || "Unknown"}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Assigned to: {bug.assignedTo?.name || "Unassigned"}
+                      </p>
+                      {bug.image && (
+                        <img
+                          src={`http://localhost:5000/uploads${
+                            bug.image.startsWith("/uploads")
+                              ? bug.image
+                              : "/" + bug.image
+                          }`}
+                          alt={bug.title}
+                          className="mt-2 w-16 h-16 object-cover rounded-md"
+                        />
+                      )}
+                      {bug.status !== "closed" && (
+                        <button
+                          onClick={() => handleCloseBug(bug._id)}
+                          className="mt-2 bg-red-500 text-white py-1 px-3 rounded-md hover:bg-red-600 transition duration-300 text-sm"
+                        >
+                          Close Bug
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500">No bugs found for this project.</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
